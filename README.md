@@ -1,6 +1,8 @@
 # SpeakSwap - Real-time Voice Translation App
 
-A modern, responsive web application built with Next.js that provides real-time language translation with voice input/output capabilities using multiple translation APIs.
+**🚀 Migrated from Android app to web app for better cross-platform accessibility**
+
+A modern, responsive web application built with Next.js that provides real-time language translation with voice input/output capabilities using multiple translation APIs. Originally developed as an Android application, SpeakSwap has been migrated to the web to provide universal access across all devices and platforms.
 
 ## Features
 
@@ -15,6 +17,7 @@ A modern, responsive web application built with Next.js that provides real-time 
 - 🛡️ **Error Handling**: Robust error handling with user-friendly feedback
 - 🔧 **TypeScript**: Full type safety throughout the application
 - 🌍 **Multiple APIs**: Uses MyMemory, LibreTranslate, and Lingva for reliable translation
+- 🔄 **Cross-Platform**: Migrated from Android to web for universal accessibility
 
 ## Tech Stack
 
@@ -193,6 +196,19 @@ This project is licensed under the ISC License.
 2. **Styles not applying**: Ensure Tailwind CSS is properly loaded
 3. **Voice buttons not appearing**: Check browser compatibility and permissions
 4. **Translation delays**: Normal for first translation, subsequent ones are faster
+
+## Migration from Android to Web
+
+SpeakSwap was originally developed as an Android application but has been successfully migrated to a web application to provide:
+
+- **Universal Access**: Works on any device with a web browser
+- **No Installation Required**: Instant access without app store downloads
+- **Cross-Platform Compatibility**: Supports Windows, macOS, Linux, iOS, and Android
+- **Real-time Updates**: Instant feature updates without app store approval
+- **Better Accessibility**: Enhanced accessibility features for all users
+- **Improved Performance**: Leverages modern web technologies for optimal performance
+
+The migration maintains all core functionality while adding new web-specific features like clipboard integration and enhanced keyboard shortcuts.
 
 ## Acknowledgments
 
