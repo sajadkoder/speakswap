@@ -19,6 +19,15 @@ A modern, responsive web application built with Next.js that provides real-time 
 - 🌍 **Multiple APIs**: Uses MyMemory, LibreTranslate, and Lingva for reliable translation
 - 🔄 **Cross-Platform**: Migrated from Android to web for universal accessibility
 
+## Contributors
+
+This mini project was developed as part of our college coursework by:
+
+- **Abdulla Sajad** - [@abdullasajad](https://github.com/abdullasajad)
+- **Adwaith PC**
+- **Jishnu MR**
+- **Harikrishnan K**
+
 ## Tech Stack
 
 - **Framework**: Next.js 15.5.3 with App Router
@@ -210,6 +219,12 @@ SpeakSwap was originally developed as an Android application but has been succes
 
 The migration maintains all core functionality while adding new web-specific features like clipboard integration and enhanced keyboard shortcuts.
 
+## About This Project
+
+SpeakSwap is a **college mini project** that demonstrates modern web development practices and real-world application of voice translation technology. This project showcases the collaborative effort of our team in creating a practical solution for language barriers.
+
+**Academic Context**: Developed as part of our computer science curriculum to explore web technologies, API integration, and user interface design.
+
 ## Acknowledgments
 
 - [MyMemory API](https://mymemory.translated.net/) for reliable translation service
@@ -219,3 +234,4 @@ The migration maintains all core functionality while adding new web-specific fea
 - [Tailwind CSS](https://tailwindcss.com/) for utility-first styling
 - [Framer Motion](https://www.framer.com/motion/) for smooth animations
 - [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) for voice features
+- Our college faculty for guidance and support throughout the development process

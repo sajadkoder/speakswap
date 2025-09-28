@@ -9,8 +9,14 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "keywords": ["translation", "voice", "nextjs", "typescript", "tailwind"],
+  "keywords": ["translation", "voice", "nextjs", "typescript", "tailwind", "college-project"],
   "author": "abdullasajad",
+  "contributors": [
+    "Abdulla Sajad <abdullasajad@example.com>",
+    "Adwaith PC",
+    "Jishnu MR", 
+    "Harikrishnan K"
+  ],
   "license": "ISC",
   "dependencies": {
     "@radix-ui/react-portal": "^1.1.9",
