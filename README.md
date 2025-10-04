@@ -19,6 +19,16 @@ A modern, responsive web application built with Next.js that provides real-time 
 - 🌍 **Multiple APIs**: Uses MyMemory, LibreTranslate, and Lingva for reliable translation
 - 🔄 **Cross-Platform**: Migrated from Android to web for universal accessibility
 
+## ✨ Recent Updates (v2.0)
+
+**Major Bug Fixes & Enhancements:**
+- 🎤 **Enhanced Speech Detection**: Improved accuracy with interim results, better error handling, and microphone permission checks
+- 🌐 **Better Translation Accuracy**: Added caching, Google Translate fallback, and enhanced API error handling
+- 🔍 **Auto Language Detection**: Intelligent language detection with pattern-based fallbacks
+- 🔊 **Improved Voice Synthesis**: Language-specific voice selection and optimized speech parameters
+- ⚡ **Backend Optimization**: In-memory caching, comprehensive language support (70+ languages), and performance improvements
+- 🛠️ **Enhanced Error Handling**: User-friendly error messages and robust fallback mechanisms
+
 ## Contributors
 
 This mini project was developed as part of our college coursework by:

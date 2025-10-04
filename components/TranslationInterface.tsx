@@ -46,6 +46,8 @@ export default function TranslationInterface() {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
+  const [isAutoDetecting, setIsAutoDetecting] = useState(false)
 
   // Load languages on component mount
   useEffect(() => {
@@ -73,16 +75,16 @@ export default function TranslationInterface() {
     }
     loadLanguages()
   }, [])
-
   // Initialize speech recognition
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
       const recognition = new SpeechRecognition()
-      
-      recognition.continuous = false
-      recognition.interimResults = false
-      recognition.lang = sourceLang
+            // Enhanced configuration for better accuracy
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.maxAlternatives = 3
+        recognition.lang = sourceLang === 'auto' ? 'en-US' : sourceLang
 
       recognition.onstart = () => {
         setIsListening(true)
@@ -90,14 +92,62 @@ export default function TranslationInterface() {
       }
 
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript
-        setSourceText(transcript)
-        setIsListening(false)
+        let interimTranscript = ''
+        let finalTranscript = ''
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i]
+          const transcript = result[0].transcript
+          
+          if (result.isFinal) {
+            finalTranscript += transcript + ' '
+          } else {
+            interimTranscript += transcript
+          }
+        }
+        
+        // Update with final transcript or show interim results
+        if (finalTranscript) {
+          setSourceText(prev => prev + finalTranscript)
+          // Auto-detect language if enabled
+          if (sourceLang === 'auto') {
+            detectLanguage(finalTranscript)
+          }
+        } else if (interimTranscript) {
+          // Show interim results in real-time
+          setSourceText(prev => {
+            const words = prev.split(' ')
+            words[words.length - 1] = interimTranscript
+            return words.join(' ')
+          })
+        }
       }
 
       recognition.onerror = (event) => {
         setIsListening(false)
-        setError(`Speech recognition error: ${event.error}`)
+        let errorMessage = 'Speech recognition error'
+        
+        switch (event.error) {
+          case 'no-speech':
+            errorMessage = 'No speech detected. Please try again.'
+            break
+          case 'audio-capture':
+            errorMessage = 'Microphone not accessible. Please check permissions.'
+            break
+          case 'not-allowed':
+            errorMessage = 'Microphone permission denied. Please allow microphone access.'
+            break
+          case 'network':
+            errorMessage = 'Network error. Please check your internet connection.'
+            break
+          case 'aborted':
+            errorMessage = 'Speech recognition was aborted.'
+            break
+          default:
+            errorMessage = `Speech recognition error: ${event.error}`
+        }
+        
+        setError(errorMessage)
       }
 
       recognition.onend = () => {
@@ -105,14 +155,48 @@ export default function TranslationInterface() {
       }
 
       setRecognition(recognition)
+    } else {
+      console.warn('Speech recognition not supported in this browser')
     }
   }, [sourceLang])
+
+  // Language detection function
+  const detectLanguage = useCallback(async (text: string) => {
+    if (!text.trim() || text.length < 10) return
+    
+    setIsAutoDetecting(true)
+    try {
+      const response = await fetch('/api/detect-language', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text.trim() }),
+      })
+      
+      const data = await response.json()
+      if (data.language && data.confidence > 0.7) {
+        setDetectedLanguage(data.language)
+        setSourceLang(data.language)
+      }
+    } catch (error) {
+      console.error('Language detection failed:', error)
+    } finally {
+      setIsAutoDetecting(false)
+    }
+  }, [])
 
   // Translate text when source text changes
   const translateText = useCallback(async (text: string) => {
     if (!text.trim() || sourceLang === targetLang) {
       setTranslatedText(sourceLang === targetLang ? text : '')
       return
+    }
+
+    // Auto-detect language if source is set to 'auto'
+    if (sourceLang === 'auto' && text.length >= 10) {
+      await detectLanguage(text)
+      return // detectLanguage will trigger a re-render which will call translateText again
     }
 
     setIsTranslating(true)
@@ -126,7 +210,7 @@ export default function TranslationInterface() {
         },
         body: JSON.stringify({
           text: text.trim(),
-          sourceLang,
+          sourceLang: sourceLang === 'auto' ? 'en' : sourceLang, // fallback to English
           targetLang,
         }),
       })
@@ -145,7 +229,7 @@ export default function TranslationInterface() {
     } finally {
       setIsTranslating(false)
     }
-  }, [sourceLang, targetLang])
+  }, [sourceLang, targetLang, detectLanguage])
 
   // Debounced translation
   useEffect(() => {
@@ -160,7 +244,7 @@ export default function TranslationInterface() {
     return () => clearTimeout(timeoutId)
   }, [sourceText, translateText])
 
-  // Speech synthesis
+  // Enhanced speech synthesis with voice selection
   const speakText = (text: string, lang: string) => {
     if (!text.trim()) return
 
@@ -168,18 +252,73 @@ export default function TranslationInterface() {
     window.speechSynthesis.cancel()
 
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = lang
-    utterance.rate = 0.9
-    utterance.pitch = 1
+    
+    // Enhanced language mapping for better voice selection
+    const languageMap: { [key: string]: string } = {
+      'en': 'en-US',
+      'es': 'es-ES',
+      'fr': 'fr-FR',
+      'de': 'de-DE',
+      'it': 'it-IT',
+      'pt': 'pt-BR',
+      'ru': 'ru-RU',
+      'ja': 'ja-JP',
+      'ko': 'ko-KR',
+      'zh': 'zh-CN',
+      'ar': 'ar-SA',
+      'hi': 'hi-IN',
+      'tr': 'tr-TR',
+      'pl': 'pl-PL',
+      'nl': 'nl-NL',
+      'sv': 'sv-SE',
+      'da': 'da-DK',
+      'no': 'nb-NO',
+      'fi': 'fi-FI',
+      'cs': 'cs-CZ'
+    }
+    
+    utterance.lang = languageMap[lang] || lang
+    
+    // Try to find the best voice for the language
+    const voices = window.speechSynthesis.getVoices()
+    const preferredVoice = voices.find(voice => 
+      voice.lang.startsWith(lang) || voice.lang.startsWith(languageMap[lang] || lang)
+    )
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice
+    }
+    
+    // Optimize speech parameters based on language
+    if (['ja', 'ko', 'zh'].includes(lang)) {
+      utterance.rate = 0.8 // Slower for tonal languages
+      utterance.pitch = 1.1
+    } else if (['es', 'it', 'pt'].includes(lang)) {
+      utterance.rate = 0.95 // Slightly faster for Romance languages
+      utterance.pitch = 1.05
+    } else {
+      utterance.rate = 0.9
+      utterance.pitch = 1
+    }
+    
+    utterance.volume = 0.9
 
     utterance.onstart = () => setIsSpeaking(true)
     utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => {
+    utterance.onerror = (event) => {
       setIsSpeaking(false)
-      setError('Speech synthesis failed')
+      console.error('Speech synthesis error:', event)
+      setError(`Speech synthesis failed: ${event.error || 'Unknown error'}`)
     }
 
-    window.speechSynthesis.speak(utterance)
+    // Ensure voices are loaded before speaking
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.speak(utterance)
+      }
+    } else {
+      window.speechSynthesis.speak(utterance)
+    }
   }
 
   // Copy to clipboard
@@ -203,8 +342,30 @@ export default function TranslationInterface() {
     if (isListening) {
       recognition.stop()
     } else {
-      recognition.lang = sourceLang
-      recognition.start()
+      try {
+        // Update language before starting (use English for auto-detection)
+        recognition.lang = sourceLang === 'auto' ? 'en-US' : sourceLang
+        
+        // Check for microphone permissions
+        if (navigator.permissions) {
+          navigator.permissions.query({ name: 'microphone' as PermissionName })
+            .then(permissionStatus => {
+              if (permissionStatus.state === 'denied') {
+                setError('Microphone permission denied. Please allow microphone access in your browser settings.')
+                return
+              }
+              recognition.start()
+            })
+            .catch(() => {
+              // Fallback if permissions API is not available
+              recognition.start()
+            })
+        } else {
+          recognition.start()
+        }
+      } catch (error) {
+        setError('Failed to start speech recognition. Please try again.')
+      }
     }
   }
 
@@ -250,12 +411,19 @@ export default function TranslationInterface() {
         {/* Language Selection */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">From</label>
+            <label className="text-sm font-medium text-gray-700">
+              From {detectedLanguage && sourceLang === 'auto' && (
+                <span className="text-xs text-blue-600 ml-1">
+                  (detected: {languages.find(l => l.code === detectedLanguage)?.name || detectedLanguage})
+                </span>
+              )}
+            </label>
             <Select value={sourceLang} onValueChange={setSourceLang}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="auto">Auto-detect</SelectItem>
                 {languages.map((lang) => (
                   <SelectItem key={lang.code} value={lang.code}>
                     {lang.name}
@@ -383,11 +551,13 @@ export default function TranslationInterface() {
                 placeholder="Translation will appear here..."
                 className="min-h-[200px] resize-none bg-gray-50"
               />
-              {isTranslating && (
+              {(isTranslating || isAutoDetecting) && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md">
                   <div className="flex items-center gap-2 text-blue-600">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Translating...</span>
+                    <span className="text-sm">
+                      {isAutoDetecting ? 'Detecting language...' : 'Translating...'}
+                    </span>
                   </div>
                 </div>
               )}
