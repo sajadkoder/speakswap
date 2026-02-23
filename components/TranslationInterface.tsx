@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Mic, 
   MicOff, 
@@ -11,7 +11,19 @@ import {
   ArrowLeftRight,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon,
+  History,
+  Star,
+  StarOff,
+  Trash2,
+  X,
+  MessageSquare,
+  ChevronDown,
+  Languages,
+  Eraser,
+  Keyboard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,6 +34,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select'
+import { useLocalStorage, useDebounce } from '@/lib/hooks'
+import { useTheme } from '@/components/ThemeProvider'
+import { commonPhrases, categories, getPhrasesByLanguage } from '@/lib/phrases'
 
 interface Language {
   code: string
@@ -34,10 +49,22 @@ interface TranslationResponse {
   error?: string
 }
 
+interface HistoryItem {
+  id: string
+  sourceText: string
+  translatedText: string
+  sourceLang: string
+  targetLang: string
+  timestamp: number
+  starred?: boolean
+}
+
+const MAX_HISTORY = 50
+
 export default function TranslationInterface() {
   const [sourceText, setSourceText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
-  const [sourceLang, setSourceLang] = useState('en')
+  const [sourceLang, setSourceLang] = useState('auto')
   const [targetLang, setTargetLang] = useState('es')
   const [languages, setLanguages] = useState<Language[]>([])
   const [isListening, setIsListening] = useState(false)
@@ -48,8 +75,14 @@ export default function TranslationInterface() {
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null)
   const [isAutoDetecting, setIsAutoDetecting] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showPhrases, setShowPhrases] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [history, setHistory] = useLocalStorage<HistoryItem[]>('translation-history', [])
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [isTyping, setIsTyping] = useState(false)
+  const debouncedSource = useDebounce(sourceText, 300)
 
-  // Load languages on component mount
   useEffect(() => {
     const loadLanguages = async () => {
       try {
@@ -58,7 +91,6 @@ export default function TranslationInterface() {
         setLanguages(data)
       } catch (error) {
         console.error('Failed to load languages:', error)
-        // Fallback languages
         setLanguages([
           { code: 'en', name: 'English' },
           { code: 'es', name: 'Spanish' },
@@ -69,22 +101,23 @@ export default function TranslationInterface() {
           { code: 'ru', name: 'Russian' },
           { code: 'ja', name: 'Japanese' },
           { code: 'ko', name: 'Korean' },
-          { code: 'zh', name: 'Chinese' },
+          { code: 'zh', name: 'Chinese (Simplified)' },
+          { code: 'ar', name: 'Arabic' },
+          { code: 'hi', name: 'Hindi' },
         ])
       }
     }
     loadLanguages()
   }, [])
-  // Initialize speech recognition
+
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition
       const recognition = new SpeechRecognition()
-            // Enhanced configuration for better accuracy
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.maxAlternatives = 3
-        recognition.lang = sourceLang === 'auto' ? 'en-US' : sourceLang
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.maxAlternatives = 3
+      recognition.lang = sourceLang === 'auto' ? 'en-US' : sourceLang
 
       recognition.onstart = () => {
         setIsListening(true)
@@ -106,15 +139,12 @@ export default function TranslationInterface() {
           }
         }
         
-        // Update with final transcript or show interim results
         if (finalTranscript) {
           setSourceText(prev => prev + finalTranscript)
-          // Auto-detect language if enabled
           if (sourceLang === 'auto') {
             detectLanguage(finalTranscript)
           }
         } else if (interimTranscript) {
-          // Show interim results in real-time
           setSourceText(prev => {
             const words = prev.split(' ')
             words[words.length - 1] = interimTranscript
@@ -135,13 +165,10 @@ export default function TranslationInterface() {
             errorMessage = 'Microphone not accessible. Please check permissions.'
             break
           case 'not-allowed':
-            errorMessage = 'Microphone permission denied. Please allow microphone access.'
+            errorMessage = 'Microphone permission denied.'
             break
           case 'network':
-            errorMessage = 'Network error. Please check your internet connection.'
-            break
-          case 'aborted':
-            errorMessage = 'Speech recognition was aborted.'
+            errorMessage = 'Network error. Please check your connection.'
             break
           default:
             errorMessage = `Speech recognition error: ${event.error}`
@@ -155,12 +182,9 @@ export default function TranslationInterface() {
       }
 
       setRecognition(recognition)
-    } else {
-      console.warn('Speech recognition not supported in this browser')
     }
   }, [sourceLang])
 
-  // Language detection function
   const detectLanguage = useCallback(async (text: string) => {
     if (!text.trim() || text.length < 10) return
     
@@ -168,9 +192,7 @@ export default function TranslationInterface() {
     try {
       const response = await fetch('/api/detect-language', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.trim() }),
       })
       
@@ -186,17 +208,15 @@ export default function TranslationInterface() {
     }
   }, [])
 
-  // Translate text when source text changes
   const translateText = useCallback(async (text: string) => {
     if (!text.trim() || sourceLang === targetLang) {
       setTranslatedText(sourceLang === targetLang ? text : '')
       return
     }
 
-    // Auto-detect language if source is set to 'auto'
     if (sourceLang === 'auto' && text.length >= 10) {
       await detectLanguage(text)
-      return // detectLanguage will trigger a re-render which will call translateText again
+      return
     }
 
     setIsTranslating(true)
@@ -205,12 +225,10 @@ export default function TranslationInterface() {
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: text.trim(),
-          sourceLang: sourceLang === 'auto' ? 'en' : sourceLang, // fallback to English
+          sourceLang: sourceLang === 'auto' ? 'en' : sourceLang,
           targetLang,
         }),
       })
@@ -231,111 +249,81 @@ export default function TranslationInterface() {
     }
   }, [sourceLang, targetLang, detectLanguage])
 
-  // Debounced translation
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (sourceText.trim()) {
-        translateText(sourceText)
-      } else {
-        setTranslatedText('')
+    if (debouncedSource.trim()) {
+      setIsTyping(true)
+      translateText(debouncedSource).finally(() => setIsTyping(false))
+    } else {
+      setTranslatedText('')
+    }
+  }, [debouncedSource, translateText])
+
+  useEffect(() => {
+    if (sourceText.trim() && translatedText.trim() && !isTranslating) {
+      const newHistoryItem: HistoryItem = {
+        id: Date.now().toString(),
+        sourceText: sourceText.trim(),
+        translatedText: translatedText.trim(),
+        sourceLang,
+        targetLang,
+        timestamp: Date.now(),
+        starred: false,
       }
-    }, 500)
+      
+      setHistory(prev => {
+        const filtered = prev.filter(item => 
+          item.sourceText !== sourceText.trim() || item.targetLang !== targetLang
+        )
+        return [newHistoryItem, ...filtered].slice(0, MAX_HISTORY)
+      })
+    }
+  }, [translatedText, isTranslating, sourceLang, targetLang, sourceText, setHistory])
 
-    return () => clearTimeout(timeoutId)
-  }, [sourceText, translateText])
-
-  // Enhanced speech synthesis with voice selection
   const speakText = (text: string, lang: string) => {
     if (!text.trim()) return
-
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel()
 
     const utterance = new SpeechSynthesisUtterance(text)
     
-    // Enhanced language mapping for better voice selection
     const languageMap: { [key: string]: string } = {
-      'en': 'en-US',
-      'es': 'es-ES',
-      'fr': 'fr-FR',
-      'de': 'de-DE',
-      'it': 'it-IT',
-      'pt': 'pt-BR',
-      'ru': 'ru-RU',
-      'ja': 'ja-JP',
-      'ko': 'ko-KR',
-      'zh': 'zh-CN',
-      'ar': 'ar-SA',
-      'hi': 'hi-IN',
-      'tr': 'tr-TR',
-      'pl': 'pl-PL',
-      'nl': 'nl-NL',
-      'sv': 'sv-SE',
-      'da': 'da-DK',
-      'no': 'nb-NO',
-      'fi': 'fi-FI',
-      'cs': 'cs-CZ'
+      'en': 'en-US', 'es': 'es-ES', 'fr': 'fr-FR', 'de': 'de-DE',
+      'it': 'it-IT', 'pt': 'pt-BR', 'ru': 'ru-RU', 'ja': 'ja-JP',
+      'ko': 'ko-KR', 'zh': 'zh-CN', 'ar': 'ar-SA', 'hi': 'hi-IN',
     }
     
     utterance.lang = languageMap[lang] || lang
     
-    // Try to find the best voice for the language
     const voices = window.speechSynthesis.getVoices()
     const preferredVoice = voices.find(voice => 
       voice.lang.startsWith(lang) || voice.lang.startsWith(languageMap[lang] || lang)
     )
     
-    if (preferredVoice) {
-      utterance.voice = preferredVoice
-    }
+    if (preferredVoice) utterance.voice = preferredVoice
     
-    // Optimize speech parameters based on language
-    if (['ja', 'ko', 'zh'].includes(lang)) {
-      utterance.rate = 0.8 // Slower for tonal languages
-      utterance.pitch = 1.1
-    } else if (['es', 'it', 'pt'].includes(lang)) {
-      utterance.rate = 0.95 // Slightly faster for Romance languages
-      utterance.pitch = 1.05
-    } else {
-      utterance.rate = 0.9
-      utterance.pitch = 1
-    }
-    
+    utterance.rate = ['ja', 'ko', 'zh'].includes(lang) ? 0.8 : 0.9
+    utterance.pitch = 1
     utterance.volume = 0.9
 
     utterance.onstart = () => setIsSpeaking(true)
     utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = (event) => {
-      setIsSpeaking(false)
-      console.error('Speech synthesis error:', event)
-      setError(`Speech synthesis failed: ${event.error || 'Unknown error'}`)
-    }
+    utterance.onerror = () => setIsSpeaking(false)
 
-    // Ensure voices are loaded before speaking
-    if (voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.speak(utterance)
-      }
-    } else {
-      window.speechSynthesis.speak(utterance)
-    }
+    window.speechSynthesis.speak(utterance)
   }
 
-  // Copy to clipboard
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
       setCopyStatus('copied')
       setTimeout(() => setCopyStatus('idle'), 2000)
-    } catch (error) {
+    } catch {
       setError('Failed to copy to clipboard')
     }
   }
 
-  // Start/stop voice recording
   const toggleRecording = () => {
     if (!recognition) {
-      setError('Speech recognition is not supported in this browser')
+      setError('Speech recognition not supported')
       return
     }
 
@@ -343,34 +331,28 @@ export default function TranslationInterface() {
       recognition.stop()
     } else {
       try {
-        // Update language before starting (use English for auto-detection)
         recognition.lang = sourceLang === 'auto' ? 'en-US' : sourceLang
-        
-        // Check for microphone permissions
         if (navigator.permissions) {
           navigator.permissions.query({ name: 'microphone' as PermissionName })
-            .then(permissionStatus => {
-              if (permissionStatus.state === 'denied') {
-                setError('Microphone permission denied. Please allow microphone access in your browser settings.')
+            .then(status => {
+              if (status.state === 'denied') {
+                setError('Microphone permission denied')
                 return
               }
               recognition.start()
             })
-            .catch(() => {
-              // Fallback if permissions API is not available
-              recognition.start()
-            })
+            .catch(() => recognition.start())
         } else {
           recognition.start()
         }
-      } catch (error) {
-        setError('Failed to start speech recognition. Please try again.')
+      } catch {
+        setError('Failed to start speech recognition')
       }
     }
   }
 
-  // Swap languages
   const swapLanguages = () => {
+    if (sourceLang === 'auto') return
     const tempLang = sourceLang
     const tempText = sourceText
     
@@ -380,199 +362,432 @@ export default function TranslationInterface() {
     setTranslatedText(tempText)
   }
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white rounded-2xl shadow-xl p-6 md:p-8"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-            SpeakSwap
-          </h1>
-          <p className="text-gray-600">Real-time voice translation</p>
-        </div>
+  const toggleStar = (id: string) => {
+    setHistory(prev => prev.map(item => 
+      item.id === id ? { ...item, starred: !item.starred } : item
+    ))
+  }
 
-        {/* Error Display */}
+  const deleteHistoryItem = (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id))
+  }
+
+  const clearHistory = () => {
+    setHistory([])
+  }
+
+  const loadFromHistory = (item: HistoryItem) => {
+    setSourceText(item.sourceText)
+    setTranslatedText(item.translatedText)
+    setSourceLang(item.sourceLang)
+    setTargetLang(item.targetLang)
+    setShowHistory(false)
+  }
+
+  const loadPhrase = (phrase: string) => {
+    setSourceText(phrase)
+    setShowPhrases(false)
+  }
+
+  const clearSource = () => {
+    setSourceText('')
+    setTranslatedText('')
+    setError(null)
+  }
+
+  const currentPhrases = useMemo(() => {
+    const phrases = getPhrasesByLanguage(sourceLang === 'auto' ? 'en' : sourceLang)
+    if (selectedCategory === 'all') return phrases.phrases
+    return phrases.phrases.filter(p => p.category === selectedCategory)
+  }, [sourceLang, selectedCategory])
+
+  const wordCount = sourceText.trim() ? sourceText.trim().split(/\s+/).length : 0
+  const charCount = sourceText.length
+
+  const favoriteItems = history.filter(item => item.starred)
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-6xl mx-auto space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-gradient">
+              SpeakSwap
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
+              Real-time voice translation • 70+ languages
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHistory(!showHistory)}
+              className="relative"
+              title="Translation History"
+            >
+              <History className="h-5 w-5" />
+              {history.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {history.length > 9 ? '9+' : history.length}
+                </span>
+              )}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowPhrases(!showPhrases)}
+              title="Common Phrases"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title="Toggle theme"
+            >
+              {resolvedTheme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
+        </motion.div>
+
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="glass rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+            >
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Translation History
+                  {favoriteItems.length > 0 && (
+                    <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full">
+                      {favoriteItems.length} starred
+                    </span>
+                  )}
+                </h3>
+                {history.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearHistory}>
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Clear all
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {history.length === 0 ? (
+                  <p className="p-4 text-center text-slate-500 text-sm">
+                    No translation history yet
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {history.slice(0, 20).map(item => (
+                      <div
+                        key={item.id}
+                        className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer group flex items-start justify-between gap-2"
+                        onClick={() => loadFromHistory(item)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{item.sourceText}</p>
+                          <p className="text-xs text-slate-500 truncate">{item.translatedText}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {languages.find(l => l.code === item.sourceLang)?.name || item.sourceLang} → {languages.find(l => l.code === item.targetLang)?.name || item.targetLang}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={(e) => { e.stopPropagation(); toggleStar(item.id); }}
+                          >
+                            {item.starred ? (
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            ) : (
+                              <StarOff className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={(e) => { e.stopPropagation(); deleteHistoryItem(item.id); }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showPhrases && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="glass rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+            >
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+                <h3 className="font-semibold flex items-center gap-2 mb-3">
+                  <MessageSquare className="h-4 w-4" />
+                  Common Phrases
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedCategory('all')}
+                  >
+                    All
+                  </Button>
+                  {categories.map(cat => (
+                    <Button
+                      key={cat}
+                      variant={selectedCategory === cat ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                {currentPhrases.map((phrase, idx) => (
+                  <Button
+                    key={idx}
+                    variant="ghost"
+                    className="justify-start text-left h-auto py-2 px-3"
+                    onClick={() => loadPhrase(phrase.text)}
+                  >
+                    <span className="truncate">{phrase.text}</span>
+                  </Button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {error && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700"
+            className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-300"
           >
             <AlertCircle className="h-5 w-5 flex-shrink-0" />
             <span className="text-sm">{error}</span>
+            <Button variant="ghost" size="icon" className="ml-auto h-6 w-6" onClick={() => setError(null)}>
+              <X className="h-4 w-4" />
+            </Button>
           </motion.div>
         )}
 
-        {/* Language Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              From {detectedLanguage && sourceLang === 'auto' && (
-                <span className="text-xs text-blue-600 ml-1">
-                  (detected: {languages.find(l => l.code === detectedLanguage)?.name || detectedLanguage})
-                </span>
-              )}
-            </label>
-            <Select value={sourceLang} onValueChange={setSourceLang}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end justify-center">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={swapLanguages}
-              className="rounded-full"
-            >
-              <ArrowLeftRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">To</label>
-            <Select value={targetLang} onValueChange={setTargetLang}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Translation Interface */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Source Text */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">Source Text</h3>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleRecording}
-                  className={`${isListening ? 'bg-red-50 border-red-200' : ''}`}
-                  disabled={!recognition}
-                >
-                  {isListening ? (
-                    <MicOff className="h-4 w-4 text-red-600" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => speakText(sourceText, sourceLang)}
-                  disabled={!sourceText.trim() || isSpeaking}
-                >
-                  {isSpeaking ? (
-                    <VolumeX className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-4 md:p-6"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 mb-6 items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Languages className="h-4 w-4" />
+                From
+                {detectedLanguage && sourceLang === 'auto' && (
+                  <span className="text-xs text-blue-500 dark:text-blue-400">
+                    (detected: {languages.find(l => l.code === detectedLanguage)?.name || detectedLanguage})
+                  </span>
+                )}
+              </label>
+              <Select value={sourceLang} onValueChange={setSourceLang}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto-detect</SelectItem>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Textarea
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-              placeholder="Type or speak to translate..."
-              className="min-h-[200px] resize-none"
-            />
-            {isListening && (
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 1 }}
-                className="flex items-center gap-2 text-red-600 text-sm"
+
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={swapLanguages}
+                disabled={sourceLang === 'auto'}
+                className="rounded-full"
+                title="Swap languages"
               >
-                <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                Listening...
-              </motion.div>
-            )}
+                <ArrowLeftRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Languages className="h-4 w-4" />
+                To
+              </label>
+              <Select value={targetLang} onValueChange={setTargetLang}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Translated Text */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800">Translation</h3>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => speakText(translatedText, targetLang)}
-                  disabled={!translatedText.trim() || isSpeaking}
-                >
-                  {isSpeaking ? (
-                    <VolumeX className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(translatedText)}
-                  disabled={!translatedText.trim()}
-                >
-                  {copyStatus === 'copied' ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Source Text</h3>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleRecording}
+                    className={isListening ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : ''}
+                    disabled={!recognition}
+                    title="Voice input"
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => speakText(sourceText, sourceLang === 'auto' ? 'en' : sourceLang)}
+                    disabled={!sourceText.trim() || isSpeaking}
+                    title="Listen to source"
+                  >
+                    {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearSource}
+                    disabled={!sourceText.trim()}
+                    title="Clear"
+                  >
+                    <Eraser className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="relative">
+                <Textarea
+                  value={sourceText}
+                  onChange={(e) => setSourceText(e.target.value)}
+                  placeholder="Type or speak to translate..."
+                  className="min-h-[200px] resize-none text-base"
+                />
+                {isListening && (
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 1 }}
+                    className="absolute bottom-3 left-3 flex items-center gap-2 text-red-500 text-sm"
+                  >
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    Listening...
+                  </motion.div>
+                )}
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>{wordCount} words</span>
+                <span>{charCount} / 5000 characters</span>
               </div>
             </div>
-            <div className="relative">
-              <Textarea
-                value={translatedText}
-                readOnly
-                placeholder="Translation will appear here..."
-                className="min-h-[200px] resize-none bg-gray-50"
-              />
-              {(isTranslating || isAutoDetecting) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md">
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">
-                      {isAutoDetecting ? 'Detecting language...' : 'Translating...'}
-                    </span>
-                  </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Translation</h3>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => speakText(translatedText, targetLang)}
+                    disabled={!translatedText.trim() || isSpeaking}
+                    title="Listen to translation"
+                  >
+                    {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(translatedText)}
+                    disabled={!translatedText.trim()}
+                    title="Copy translation"
+                  >
+                    {copyStatus === 'copied' ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
-              )}
+              </div>
+              <div className="relative">
+                <Textarea
+                  value={translatedText}
+                  readOnly
+                  placeholder="Translation will appear here..."
+                  className="min-h-[200px] resize-none bg-slate-50 dark:bg-slate-800/50 text-base"
+                />
+                {(isTranslating || isAutoDetecting || isTyping) && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 rounded-md">
+                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="text-sm">
+                        {isAutoDetecting ? 'Detecting language...' : 'Translating...'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Supports 60+ languages with real-time voice translation</p>
-          <p className="mt-1">
-            Migrated from Android app to web app for better accessibility
-          </p>
-        </div>
-      </motion.div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-4"
+        >
+          <span className="flex items-center gap-1">
+            <Keyboard className="h-3 w-3" />
+            Press <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px]">Ctrl+Enter</kbd> to translate
+          </span>
+        </motion.div>
+      </div>
     </div>
   )
 }
