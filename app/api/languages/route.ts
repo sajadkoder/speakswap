@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 
+interface Language {
+  code: string;
+  name: string;
+}
+
 // Enhanced language list with more languages and better organization
-const fallbackLanguages = [
+const fallbackLanguages: Language[] = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Spanish' },
   { code: 'fr', name: 'French' },
@@ -78,7 +83,7 @@ const fallbackLanguages = [
 ];
 
 // In-memory cache for languages
-let languagesCache: any[] | null = null;
+let languagesCache: Language[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
@@ -100,43 +105,45 @@ export async function GET() {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await fetch(endpoint, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'SpeakSwap/1.0'
-          },
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const languages = await response.json();
-            if (Array.isArray(languages) && languages.length > 0) {
-              // Merge with fallback languages for comprehensive list
-              const mergedLanguages = [...languages];
-              
-              // Add any missing languages from fallback
-              fallbackLanguages.forEach(fallbackLang => {
-                if (!languages.find(lang => lang.code === fallbackLang.code)) {
-                  mergedLanguages.push(fallbackLang);
-                }
-              });
-              
-              // Sort alphabetically by name
-              mergedLanguages.sort((a, b) => a.name.localeCompare(b.name));
-              
-              // Cache the result
-              languagesCache = mergedLanguages;
-              cacheTimestamp = Date.now();
-              
-              return NextResponse.json(mergedLanguages);
+
+        try {
+          const response = await fetch(endpoint, {
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'SpeakSwap/1.0'
+            },
+            signal: controller.signal,
+          });
+
+          if (response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const languages = await response.json() as Language[];
+              if (Array.isArray(languages) && languages.length > 0) {
+                // Merge with fallback languages for comprehensive list
+                const mergedLanguages = [...languages];
+                
+                // Add any missing languages from fallback
+                fallbackLanguages.forEach(fallbackLang => {
+                  if (!languages.find((language) => language.code === fallbackLang.code)) {
+                    mergedLanguages.push(fallbackLang);
+                  }
+                });
+                
+                // Sort alphabetically by name
+                mergedLanguages.sort((a, b) => a.name.localeCompare(b.name));
+                
+                // Cache the result
+                languagesCache = mergedLanguages;
+                cacheTimestamp = Date.now();
+                
+                return NextResponse.json(mergedLanguages);
+              }
             }
           }
+        } finally {
+          clearTimeout(timeoutId);
         }
       } catch (err) {
         console.log(`Failed to fetch from ${endpoint}:`, err);

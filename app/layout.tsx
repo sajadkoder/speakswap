@@ -1,18 +1,15 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: 'SpeakSwap - Voice Translation App',
-  description: 'Real-time language translation with voice input/output capabilities. Translate between 70+ languages instantly.',
-  keywords: ['translation', 'voice', 'languages', 'multilingual', 'speech recognition', 'text to speech'],
+  title: 'SpeakSwap',
+  description: 'Minimal voice and text translation with live speech input and spoken playback.',
+  keywords: ['translation', 'voice', 'speech recognition', 'text to speech', 'languages'],
   authors: [{ name: 'SpeakSwap Team' }],
   openGraph: {
-    title: 'SpeakSwap - Voice Translation App',
-    description: 'Real-time language translation with voice input/output capabilities',
+    title: 'SpeakSwap',
+    description: 'Minimal voice and text translation with live speech input and spoken playback.',
     type: 'website',
   },
 }
@@ -24,10 +21,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <body className="antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   )
