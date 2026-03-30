@@ -9,6 +9,7 @@ import {
   Copy,
   Eraser,
   History,
+  Languages,
   Loader2,
   MessageSquare,
   Mic,
@@ -596,13 +597,10 @@ export default function TranslationInterface() {
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="max-w-2xl space-y-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold tracking-[-0.08em] text-white shadow-[0_12px_24px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950">
-                  SS
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/5 bg-white/88 shadow-[0_12px_24px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/[0.06]">
+                  <Languages className="h-5 w-5 text-slate-900 dark:text-white" strokeWidth={1.9} />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">SpeakSwap</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Voice translation</p>
-                </div>
+                <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">SpeakSwap</p>
               </div>
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white md:text-5xl">
