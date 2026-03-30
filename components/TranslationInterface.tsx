@@ -595,9 +595,15 @@ export default function TranslationInterface() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="max-w-2xl space-y-3">
-              <span className="inline-flex w-fit items-center rounded-full border border-black/5 bg-black/[0.03] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-slate-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-400">
-                SpeakSwap
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold tracking-[-0.08em] text-white shadow-[0_12px_24px_rgba(15,23,42,0.16)] dark:bg-white dark:text-slate-950">
+                  SS
+                </div>
+                <div>
+                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">SpeakSwap</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Voice translation</p>
+                </div>
+              </div>
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white md:text-5xl">
                   Voice translation without the noise.
