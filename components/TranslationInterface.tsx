@@ -500,6 +500,12 @@ export default function TranslationInterface() {
     { ctrl: true },
   )
 
+  useKeyboardShortcut('Escape', () => {
+    setShowHistory(false)
+    setShowPhrases(false)
+    setError(null)
+  })
+
   const handleSourceChange = (value: string) => {
     lastInputMethodRef.current = 'typing'
     lastAutoSpokenKeyRef.current = ''
