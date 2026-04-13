@@ -1,11 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
+import type { Language } from '@/types'
 
-interface Language {
-  code: string;
-  name: string;
-}
-
-// Enhanced language list with more languages and better organization
 const fallbackLanguages: Language[] = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Spanish' },
@@ -82,24 +77,23 @@ const fallbackLanguages: Language[] = [
   { code: 'az', name: 'Azerbaijani' },
 ];
 
-// In-memory cache for languages
-let languagesCache: Language[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const sortedFallback = [...fallbackLanguages].sort((a, b) => a.name.localeCompare(b.name))
+
+let languagesCache: Language[] | null = null
+let cacheTimestamp = 0
+const CACHE_DURATION = 30 * 60 * 1000
 
 export async function GET() {
   try {
-    // Check cache first
     if (languagesCache && Date.now() - cacheTimestamp < CACHE_DURATION) {
-      return NextResponse.json(languagesCache);
+      return NextResponse.json(languagesCache)
     }
 
-    // Try multiple LibreTranslate instances
     const endpoints = [
       'https://libretranslate.de/languages',
       'https://libretranslate.com/languages',
-      'https://translate.argosopentech.com/languages'
-    ];
+      'https://translate.argosopentech.com/languages',
+    ]
 
     for (const endpoint of endpoints) {
       try {
@@ -151,22 +145,12 @@ export async function GET() {
       }
     }
 
-    // If all APIs fail, return fallback languages
-    console.log('All LibreTranslate APIs failed, using fallback languages');
-    
-    // Sort fallback languages alphabetically
-    const sortedFallback = [...fallbackLanguages].sort((a, b) => a.name.localeCompare(b.name));
-    
-    // Cache fallback languages
-    languagesCache = sortedFallback;
-    cacheTimestamp = Date.now();
-    
-    return NextResponse.json(sortedFallback);
-    
-  } catch (error) {
-    console.error('Languages fetch error:', error);
-    // Return fallback languages on any error
-    const sortedFallback = [...fallbackLanguages].sort((a, b) => a.name.localeCompare(b.name));
-    return NextResponse.json(sortedFallback);
+    console.log('All LibreTranslate APIs failed, using fallback languages')
+    languagesCache = sortedFallback
+    cacheTimestamp = Date.now()
+    return NextResponse.json(sortedFallback)
+
+  } catch {
+    return NextResponse.json(sortedFallback)
   }
 }

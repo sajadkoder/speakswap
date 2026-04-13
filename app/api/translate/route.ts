@@ -17,6 +17,24 @@ interface TranslationResult {
 
 const translationCache = new Map<string, CachedTranslation>()
 const CACHE_DURATION = 5 * 60 * 1000
+const MAX_CACHE_SIZE = 500
+
+const VALID_LANG_CODES = /^[a-z]{2,3}(-[A-Z]{2})?$/
+
+const requestCounts = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_WINDOW = 60 * 1000
+const RATE_LIMIT_MAX = 30
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = requestCounts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    requestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW })
+    return true
+  }
+  entry.count += 1
+  return entry.count <= RATE_LIMIT_MAX
+}
 
 const LANGUAGE_MAPPINGS: Record<string, Partial<Record<TranslationSource, string>>> = {
   ar: { google: 'ar', libre: 'ar', mymemory: 'ar' },
@@ -33,12 +51,22 @@ function getFromCache(key: string): CachedTranslation | null {
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached
   }
-
   translationCache.delete(key)
   return null
 }
 
 function setCache(key: string, translation: string, source: string) {
+  if (translationCache.size >= MAX_CACHE_SIZE) {
+    let oldestKey: string | null = null
+    let oldestTime = Infinity
+    translationCache.forEach((value, k) => {
+      if (value.timestamp < oldestTime) {
+        oldestTime = value.timestamp
+        oldestKey = k
+      }
+    })
+    if (oldestKey) translationCache.delete(oldestKey)
+  }
   translationCache.set(key, { source, timestamp: Date.now(), translation })
 }
 
@@ -46,10 +74,13 @@ function mapLanguageCode(languageCode: string, api: TranslationSource): string {
   return LANGUAGE_MAPPINGS[languageCode]?.[api] || languageCode
 }
 
+function isValidLangCode(code: string): boolean {
+  return code === 'auto' || VALID_LANG_CODES.test(code)
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
   try {
     return await fetch(url, { ...init, signal: controller.signal })
   } finally {
@@ -58,9 +89,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 async function translateWithMyMemory(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult | null> {
-  if (sourceLang === 'auto') {
-    return null
-  }
+  if (sourceLang === 'auto') return null
 
   const response = await fetchWithTimeout(
     `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${mapLanguageCode(sourceLang, 'mymemory')}|${mapLanguageCode(targetLang, 'mymemory')}`,
@@ -68,24 +97,17 @@ async function translateWithMyMemory(text: string, sourceLang: string, targetLan
     10000,
   )
 
-  if (!response.ok) {
-    return null
-  }
+  if (!response.ok) return null
 
   const data = await response.json()
   const translatedText = data?.responseData?.translatedText
-
-  if (!translatedText || translatedText.toLowerCase() === text.toLowerCase()) {
-    return null
-  }
+  if (!translatedText || translatedText.toLowerCase() === text.toLowerCase()) return null
 
   return { source: 'MyMemory', translatedText }
 }
 
 async function translateWithLibre(text: string, sourceLang: string, targetLang: string): Promise<TranslationResult | null> {
-  if (sourceLang === 'auto') {
-    return null
-  }
+  if (sourceLang === 'auto') return null
 
   const endpoints = [
     'https://libretranslate.de/translate',
@@ -95,37 +117,19 @@ async function translateWithLibre(text: string, sourceLang: string, targetLang: 
 
   for (const endpoint of endpoints) {
     try {
-      const response = await fetchWithTimeout(
-        endpoint,
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'SpeakSwap/1.0',
-          },
-          body: JSON.stringify({
-            format: 'text',
-            q: text,
-            source: mapLanguageCode(sourceLang, 'libre'),
-            target: mapLanguageCode(targetLang, 'libre'),
-          }),
-        },
-        10000,
-      )
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'SpeakSwap/1.0' },
+        body: JSON.stringify({ format: 'text', q: text, source: mapLanguageCode(sourceLang, 'libre'), target: mapLanguageCode(targetLang, 'libre') }),
+      }, 10000)
 
-      if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
-        continue
-      }
+      if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) continue
 
       const data = await response.json()
-      const translatedText = data?.translatedText
-
-      if (translatedText && translatedText.toLowerCase() !== text.toLowerCase()) {
-        return { source: 'LibreTranslate', translatedText }
+      if (data?.translatedText && data.translatedText.toLowerCase() !== text.toLowerCase()) {
+        return { source: 'LibreTranslate', translatedText: data.translatedText }
       }
-    } catch (error) {
-      console.log(`LibreTranslate failed for ${endpoint}:`, error)
+    } catch {
     }
   }
 
@@ -139,22 +143,22 @@ async function translateWithGoogle(text: string, sourceLang: string, targetLang:
     8000,
   )
 
-  if (!response.ok) {
-    return null
-  }
+  if (!response.ok) return null
 
   const data = await response.json()
   const segments = Array.isArray(data?.[0]) ? (data[0] as Array<[string]>).map((item) => item[0]).join('') : ''
-
-  if (!segments || segments.toLowerCase() === text.toLowerCase()) {
-    return null
-  }
+  if (!segments || segments.toLowerCase() === text.toLowerCase()) return null
 
   return { source: 'Google Translate', translatedText: segments }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    }
+
     const { text, sourceLang, targetLang } = await request.json()
     const trimmedText = typeof text === 'string' ? text.trim() : ''
 
@@ -162,8 +166,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 })
     }
 
+    if (!isValidLangCode(sourceLang) || !isValidLangCode(targetLang)) {
+      return NextResponse.json({ error: 'Invalid language code' }, { status: 400 })
+    }
+
     if (trimmedText.length > 5000) {
-      return NextResponse.json({ error: 'Text too long. Maximum 5000 characters allowed.' }, { status: 400 })
+      return NextResponse.json({ error: 'Text too long. Maximum 5000 characters.' }, { status: 400 })
     }
 
     let resolvedSourceLang = sourceLang
@@ -199,43 +207,36 @@ export async function POST(request: NextRequest) {
             () => translateWithGoogle(trimmedText, sourceLang, targetLang),
             () => translateWithMyMemory(trimmedText, resolvedSourceLang, targetLang),
             () => translateWithLibre(trimmedText, resolvedSourceLang, targetLang),
-            () => translateWithGoogle(trimmedText, resolvedSourceLang, targetLang),
           ]
         : [
             () => translateWithMyMemory(trimmedText, resolvedSourceLang, targetLang),
             () => translateWithLibre(trimmedText, resolvedSourceLang, targetLang),
             () => translateWithGoogle(trimmedText, resolvedSourceLang, targetLang),
-        ]
+          ]
 
     for (const strategy of strategies) {
       try {
         const result = await strategy()
-        if (!result) {
-          continue
-        }
+        if (!result) continue
 
         setCache(cacheKey, result.translatedText, result.source)
         return NextResponse.json({
           ...result,
           ...(sourceLang === 'auto' ? { detectedLanguage: resolvedSourceLang } : {}),
         })
-      } catch (error) {
-        console.log('Translation strategy failed:', error)
+      } catch {
       }
     }
 
-    console.log('All translation APIs failed for:', { preview: trimmedText.substring(0, 50), sourceLang, targetLang })
     return NextResponse.json(
       {
         error: 'All translation services are temporarily unavailable. Please try again later.',
         source: 'Error',
-        translatedText: `[Translation unavailable: ${sourceLang} -> ${targetLang}] ${trimmedText}`,
         ...(sourceLang === 'auto' ? { detectedLanguage: resolvedSourceLang } : {}),
       },
       { status: 503 },
     )
-  } catch (error) {
-    console.error('Translation error:', error)
-    return NextResponse.json({ error: `Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}` }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Translation failed. Please try again.' }, { status: 500 })
   }
 }

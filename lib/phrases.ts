@@ -139,6 +139,3 @@ export const commonPhrases: Record<string, PhraseGroup> = {
 export const categories = ['Greetings', 'Polite', 'Travel', 'Shopping', 'Communication', 'Emergency']
 
 export const getPhrasesByLanguage = (langCode: string) => commonPhrases[langCode] || commonPhrases.en
-
-export const getPhrasesByCategory = (langCode: string, category: string) =>
-  getPhrasesByLanguage(langCode).phrases.filter((phrase) => phrase.category === category)

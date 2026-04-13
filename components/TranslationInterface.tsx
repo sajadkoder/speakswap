@@ -27,27 +27,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useDebounce, useKeyboardShortcut, useLocalStorage } from '@/lib/hooks'
 import { categories, getPhrasesByLanguage } from '@/lib/phrases'
 import { findBestVoice, getSpeechLocale } from '@/lib/speech'
-
-interface Language {
-  code: string
-  name: string
-}
-
-interface TranslationResponse {
-  detectedLanguage?: string
-  error?: string
-  source?: string
-  translatedText?: string
-}
-
-interface HistoryItem {
-  id: string
-  sourceLang: string
-  sourceText: string
-  targetLang: string
-  timestamp: number
-  translatedText: string
-}
+import type { Language, TranslationResponse, HistoryItem } from '@/types'
 
 const MAX_HISTORY = 50
 const AUTO_LANGUAGE: Language = { code: 'auto', name: 'Auto Detect' }
@@ -97,6 +77,7 @@ export default function TranslationInterface() {
   const [translationSource, setTranslationSource] = useState<string | null>(null)
   const [isAutoDetecting, setIsAutoDetecting] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showPhrases, setShowPhrases] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -115,7 +96,7 @@ export default function TranslationInterface() {
   const sourceLanguageName = useMemo(() => languages.find((language) => language.code === effectiveSourceLang)?.name ?? null, [effectiveSourceLang, languages])
   const targetLanguageName = useMemo(() => languages.find((language) => language.code === targetLang)?.name ?? targetLang.toUpperCase(), [languages, targetLang])
   const detectedLanguageName = useMemo(() => languages.find((language) => language.code === detectedLanguage)?.name ?? null, [detectedLanguage, languages])
-  const listeningLocale = sourceLang === 'auto' ? null : getSpeechLocale(sourceLang)
+  const listeningLocale = sourceLang === 'auto' ? (detectedLanguage ? getSpeechLocale(detectedLanguage) : null) : getSpeechLocale(sourceLang)
   const targetVoice = useMemo(() => findBestVoice(targetLang, availableVoices), [availableVoices, targetLang])
   const wordCount = sourceText.trim() ? sourceText.trim().split(/\s+/).length : 0
   const currentPhrases = useMemo(() => {
@@ -124,17 +105,17 @@ export default function TranslationInterface() {
     return selectedCategory === 'all' ? phrases.phrases : phrases.phrases.filter((phrase) => phrase.category === selectedCategory)
   }, [detectedLanguage, selectedCategory, sourceLang])
 
-  const canRecord = Boolean(recognition) && Boolean(listeningLocale)
+  const canRecord = Boolean(recognition)
 
   const recordHint = useMemo(() => {
     if (!recognition) {
       return 'Voice input is not available in this browser.'
     }
-    if (!listeningLocale) {
-      return 'Choose the language you are speaking before using the microphone.'
+    if (sourceLang === 'auto' && !detectedLanguage) {
+      return 'Type a few words first so the language can be detected, then use the microphone.'
     }
-    return `Microphone input listens in ${sourceLanguageName ?? listeningLocale}.`
-  }, [listeningLocale, recognition, sourceLanguageName])
+    return `Microphone input listens in ${sourceLanguageName ?? listeningLocale ?? 'English'}.`
+  }, [listeningLocale, recognition, sourceLanguageName, sourceLang, detectedLanguage])
 
   const outputHint = targetVoice
     ? `Spoken output uses ${targetVoice.name}.`
@@ -180,6 +161,10 @@ export default function TranslationInterface() {
       return null
     }
 
+    if (detectedLanguage && trimmedText.length < 50) {
+      return detectedLanguage
+    }
+
     setIsAutoDetecting(true)
 
     try {
@@ -202,7 +187,7 @@ export default function TranslationInterface() {
     } finally {
       setIsAutoDetecting(false)
     }
-  }, [])
+  }, [detectedLanguage])
 
   useEffect(() => {
     if (sourceLang !== 'auto') {
@@ -528,18 +513,15 @@ export default function TranslationInterface() {
       return
     }
 
-    if (!listeningLocale) {
-      setError('Choose the language you are speaking before using the microphone.')
-      return
-    }
-
     if (isListening) {
       recognition.stop()
       return
     }
 
+    const locale = listeningLocale ?? getSpeechLocale('en')
+
     try {
-      recognition.lang = listeningLocale
+      recognition.lang = locale
       recognition.start()
     } catch {
       setError('Failed to start voice input.')
@@ -548,20 +530,35 @@ export default function TranslationInterface() {
 
   const swapLanguages = () => {
     if (sourceLang === 'auto') {
-      setError('Choose a fixed source language before swapping with the destination.')
-      return
+      if (detectedLanguage) {
+        setSourceLang(targetLang)
+        setTargetLang(detectedLanguage)
+      } else {
+        setError('Detect a language first before swapping.')
+        return
+      }
+    } else {
+      setSourceLang(targetLang)
+      setTargetLang(sourceLang)
     }
 
     lastInputMethodRef.current = 'typing'
     lastAutoSpokenKeyRef.current = ''
-    setSourceLang(targetLang)
-    setTargetLang(sourceLang)
     setSourceText(translatedText)
     setTranslatedText(sourceText)
+    setDetectedLanguage(null)
     setTranslationSource('Swapped locally')
   }
 
-  const clearHistory = () => setHistory([])
+  const clearHistory = () => {
+    if (showClearConfirm) {
+      setHistory([])
+      setShowClearConfirm(false)
+    } else {
+      setShowClearConfirm(true)
+      setTimeout(() => setShowClearConfirm(false), 3000)
+    }
+  }
 
   const loadFromHistory = (item: HistoryItem) => {
     skipNextHistorySaveRef.current = true
@@ -635,12 +632,13 @@ export default function TranslationInterface() {
               >
                 <MessageSquare className="mr-2 h-4 w-4" /> Phrases
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="h-10 w-10 rounded-full border-black/5 bg-white/70 dark:border-white/10 dark:bg-white/[0.03]"
-              >
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  aria-label="Toggle theme"
+                  className="h-10 w-10 rounded-full border-black/5 bg-white/70 dark:border-white/10 dark:bg-white/[0.03]"
+                >
                 {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
             </div>
@@ -673,7 +671,7 @@ export default function TranslationInterface() {
               >
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span className="flex-1">{error}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setError(null)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setError(null)} aria-label="Dismiss error">
                   <X className="h-4 w-4" />
                 </Button>
               </motion.div>
@@ -709,6 +707,7 @@ export default function TranslationInterface() {
             variant="outline"
             size="icon"
             onClick={swapLanguages}
+            aria-label="Swap languages"
             className="mx-auto h-12 w-12 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.04]"
           >
             <ArrowLeftRight className="h-4 w-4" />
@@ -753,6 +752,7 @@ export default function TranslationInterface() {
                   size="icon"
                   onClick={toggleRecording}
                   disabled={!canRecord && !isListening}
+                  aria-label={isListening ? 'Stop recording' : 'Start recording'}
                   className={`h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06] ${isListening ? 'border-sky-500/40 text-sky-600 dark:text-sky-300' : ''}`}
                 >
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -762,6 +762,7 @@ export default function TranslationInterface() {
                   size="icon"
                   onClick={() => (isSpeaking ? stopSpeaking() : speakText(sourceText, sourceLang === 'auto' ? detectedLanguage ?? 'en' : sourceLang))}
                   disabled={!sourceText.trim()}
+                  aria-label={isSpeaking ? 'Stop speaking source' : 'Speak source text'}
                   className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
                 >
                   {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -771,6 +772,7 @@ export default function TranslationInterface() {
                   size="icon"
                   onClick={clearSource}
                   disabled={!sourceText.trim()}
+                  aria-label="Clear source text"
                   className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
                 >
                   <Eraser className="h-4 w-4" />
@@ -783,6 +785,8 @@ export default function TranslationInterface() {
                 value={sourceText}
                 onChange={(event) => handleSourceChange(event.target.value)}
                 placeholder="Type here, or choose the spoken language and start dictation."
+                maxLength={5000}
+                aria-label="Source text to translate"
                 className="h-full min-h-[240px] rounded-[24px] border-black/5 bg-white/85 px-5 py-5 text-lg leading-8 tracking-[-0.02em] text-slate-950 shadow-none focus-visible:ring-1 dark:border-white/10 dark:bg-[#111214] dark:text-white"
               />
               {(isTyping || isAutoDetecting || isTranslating) && (
@@ -833,6 +837,7 @@ export default function TranslationInterface() {
                   size="icon"
                   onClick={() => (isSpeaking ? stopSpeaking() : speakText(translatedText, targetLang))}
                   disabled={!translatedText.trim()}
+                  aria-label={isSpeaking ? 'Stop speaking translation' : 'Speak translation'}
                   className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
                 >
                   {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -842,6 +847,7 @@ export default function TranslationInterface() {
                   size="icon"
                   onClick={() => copyToClipboard(translatedText)}
                   disabled={!translatedText.trim()}
+                  aria-label="Copy translation"
                   className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
                 >
                   {copyStatus === 'copied' ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
@@ -854,6 +860,7 @@ export default function TranslationInterface() {
                 value={translatedText}
                 readOnly
                 placeholder="Your translation appears here."
+                aria-label="Translated text"
                 className="h-full min-h-[240px] rounded-[24px] border-black/5 bg-white/85 px-5 py-5 text-lg leading-8 tracking-[-0.02em] text-slate-950 shadow-none focus-visible:ring-1 dark:border-white/10 dark:bg-[#111214] dark:text-white"
               />
             </div>
@@ -882,7 +889,7 @@ export default function TranslationInterface() {
                 </div>
                 {history.length > 0 && (
                   <Button variant="outline" size="sm" onClick={clearHistory} className="h-10 rounded-full border-black/5 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.06]">
-                    Clear
+                    {showClearConfirm ? 'Confirm clear?' : 'Clear'}
                   </Button>
                 )}
               </div>

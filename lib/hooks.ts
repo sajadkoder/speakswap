@@ -1,32 +1,30 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === 'undefined') {
-      return initialValue
-    }
+  const [storedValue, setStoredValue] = useState<T>(initialValue)
+  const isHydrated = useRef(false)
+
+  useEffect(() => {
     try {
       const item = window.localStorage.getItem(key)
-      return item ? JSON.parse(item) : initialValue
-    } catch (error) {
-      console.error(error)
-      return initialValue
+      if (item) {
+        setStoredValue(JSON.parse(item))
+      }
+    } catch {
     }
-  })
+    isHydrated.current = true
+  }, [key])
 
   const setValue = useCallback((value: T | ((prev: T) => T)) => {
     try {
       setStoredValue((currentValue) => {
         const valueToStore = value instanceof Function ? value(currentValue) : value
-
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(key, JSON.stringify(valueToStore))
         }
-
         return valueToStore
       })
-    } catch (error) {
-      console.error(error)
+    } catch {
     }
   }, [key])
 
@@ -50,20 +48,31 @@ export function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function useKeyboardShortcut(key: string, callback: () => void, modifiers: { ctrl?: boolean; shift?: boolean; alt?: boolean } = {}) {
+  const callbackRef = useRef(callback)
+  callbackRef.current = callback
+
+  const modifiersKey = `${!!modifiers.ctrl}-${!!modifiers.shift}-${!!modifiers.alt}`
+
   useEffect(() => {
+    const ctrl = modifiers.ctrl
+    const shift = modifiers.shift
+    const alt = modifiers.alt
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key.toLowerCase() === key.toLowerCase() &&
-        (!modifiers.ctrl || event.ctrlKey || event.metaKey) &&
-        (!modifiers.shift || event.shiftKey) &&
-        (!modifiers.alt || event.altKey)
+        (!ctrl || event.ctrlKey || event.metaKey) &&
+        (!shift || event.shiftKey) &&
+        (!alt || event.altKey) &&
+        !(event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement)
       ) {
         event.preventDefault()
-        callback()
+        callbackRef.current()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [key, callback, modifiers])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, modifiersKey])
 }
