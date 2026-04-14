@@ -91,6 +91,7 @@ export default function TranslationInterface() {
   const lastSavedHistoryKeyRef = useRef('')
   const lastAutoSpokenKeyRef = useRef('')
   const skipNextHistorySaveRef = useRef(false)
+  const networkRetryRef = useRef(0)
 
   const effectiveSourceLang = sourceLang === 'auto' ? detectedLanguage ?? 'auto' : sourceLang
   const sourceLanguageName = useMemo(() => languages.find((language) => language.code === effectiveSourceLang)?.name ?? null, [effectiveSourceLang, languages])
@@ -246,18 +247,38 @@ export default function TranslationInterface() {
       setSourceText((currentText) => (currentText.trim() ? `${currentText.trim()} ${nextText}` : nextText))
     }
     nextRecognition.onerror = (event) => {
+      if (event.error === 'aborted') {
+        setIsListening(false)
+        return
+      }
+
+      if (event.error === 'network' && networkRetryRef.current < 1) {
+        networkRetryRef.current += 1
+        try {
+          nextRecognition.start()
+        } catch {
+          setIsListening(false)
+          setError('Network error — please try again.')
+        }
+        return
+      }
+
       setIsListening(false)
+      networkRetryRef.current = 0
 
       const messages: Record<string, string> = {
         'audio-capture': 'Microphone access is unavailable.',
-        network: 'Speech recognition hit a network error.',
+        network: 'Network error — please check your connection and try again.',
         'no-speech': 'No speech was detected.',
         'not-allowed': 'Microphone permission was denied.',
       }
 
       setError(messages[event.error] || `Speech recognition error: ${event.error}`)
     }
-    nextRecognition.onend = () => setIsListening(false)
+    nextRecognition.onend = () => {
+      networkRetryRef.current = 0
+      setIsListening(false)
+    }
 
     setRecognition(nextRecognition)
 
@@ -522,6 +543,7 @@ export default function TranslationInterface() {
 
     try {
       recognition.lang = locale
+      networkRetryRef.current = 0
       recognition.start()
     } catch {
       setError('Failed to start voice input.')
