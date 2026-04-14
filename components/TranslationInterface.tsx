@@ -590,29 +590,21 @@ export default function TranslationInterface() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center gap-6 px-4 py-6 md:px-6 md:py-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center gap-5 px-4 py-6 md:px-6 md:py-10">
       <motion.section
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        className="surface-panel overflow-hidden rounded-[32px] px-5 py-6 md:px-8 md:py-8"
+        className="glow-panel overflow-hidden rounded-[28px] px-5 py-6 md:px-7 md:py-7"
       >
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-2xl space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/5 bg-white/88 shadow-[0_12px_24px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/[0.06]">
-                  <Languages className="h-5 w-5 text-slate-900 dark:text-white" strokeWidth={1.9} />
-                </div>
-                <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">SpeakSwap</p>
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white md:text-5xl">
-                  Voice translation without the noise.
-                </h1>
-                <p className="max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 md:text-base">
-                  Pick the language you are speaking, capture a phrase, and hear the translation back in the destination language.
-                </p>
-              </div>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-[-0.02em] glow-text md:text-3xl">
+                SpeakSwap
+              </h1>
+              <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">
+                Voice translation without the noise. Speak, type, or paste — hear it back instantly.
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -620,59 +612,54 @@ export default function TranslationInterface() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowHistory((current) => !current)}
-                className="h-10 rounded-full border-black/5 bg-white/70 px-4 dark:border-white/10 dark:bg-white/[0.03]"
+                className="soft-btn h-9 rounded-full px-3.5 text-xs font-medium"
               >
-                <History className="mr-2 h-4 w-4" /> History
+                <History className="mr-1.5 h-3.5 w-3.5" /> History
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowPhrases((current) => !current)}
-                className="h-10 rounded-full border-black/5 bg-white/70 px-4 dark:border-white/10 dark:bg-white/[0.03]"
+                className="soft-btn h-9 rounded-full px-3.5 text-xs font-medium"
               >
-                <MessageSquare className="mr-2 h-4 w-4" /> Phrases
+                <MessageSquare className="mr-1.5 h-3.5 w-3.5" /> Phrases
               </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  aria-label="Toggle theme"
-                  className="h-10 w-10 rounded-full border-black/5 bg-white/70 dark:border-white/10 dark:bg-white/[0.03]"
-                >
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label="Toggle theme"
+                className="soft-btn h-9 w-9 rounded-full"
+              >
                 {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="secondary-panel rounded-[24px] px-4 py-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Voice Input</p>
-              <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{recordHint}</p>
+          <div className="grid gap-2.5 md:grid-cols-3">
+            <div className="glow-badge inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium">
+              <Mic className="h-3.5 w-3.5" /> {recordHint}
             </div>
-            <div className="secondary-panel rounded-[24px] px-4 py-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Voice Output</p>
-              <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">{outputHint}</p>
+            <div className="glow-badge inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium">
+              <Volume2 className="h-3.5 w-3.5" /> {outputHint}
             </div>
-            <div className="secondary-panel rounded-[24px] px-4 py-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Session</p>
-              <p className="mt-2 text-sm font-medium text-slate-900 dark:text-white">
-                {translationSource ? translationSource : 'Ready for translation'}
-              </p>
+            <div className="glow-badge inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-medium">
+              <Languages className="h-3.5 w-3.5" /> {translationSource ?? 'Ready'}
             </div>
           </div>
 
           <AnimatePresence initial={false}>
             {error && (
               <motion.div
-                initial={{ opacity: 0, y: -8 }}
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex items-start gap-3 rounded-[24px] border border-red-500/15 bg-red-500/[0.08] px-4 py-4 text-sm text-red-700 dark:border-red-400/15 dark:bg-red-400/[0.08] dark:text-red-200"
+                exit={{ opacity: 0, y: -6 }}
+                className="flex items-center gap-3 rounded-2xl border border-red-500/10 bg-red-500/[0.06] px-4 py-3 text-sm text-red-700 dark:border-red-400/10 dark:bg-red-400/[0.06] dark:text-red-300"
               >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{error}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setError(null)} aria-label="Dismiss error">
-                  <X className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setError(null)} aria-label="Dismiss error">
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </motion.div>
             )}
@@ -684,20 +671,18 @@ export default function TranslationInterface() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="surface-panel overflow-hidden rounded-[32px] p-4 md:p-6"
+        className="glow-panel overflow-hidden rounded-[28px] p-4 md:p-5"
       >
-        <div className="grid gap-4 md:grid-cols-[1fr,auto,1fr] md:items-end">
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">From</label>
+        <div className="grid gap-3 md:grid-cols-[1fr,auto,1fr] md:items-end">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">From</label>
             <Select value={sourceLang} onValueChange={setSourceLang}>
-              <SelectTrigger className="h-12 rounded-2xl border-black/5 bg-white/80 text-sm dark:border-white/10 dark:bg-white/[0.04]">
+              <SelectTrigger className="select-input h-11 rounded-2xl text-sm">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-black/5 dark:border-white/10">
+              <SelectContent className="rounded-2xl">
                 {languages.map((language) => (
-                  <SelectItem key={language.code} value={language.code}>
-                    {language.name}
-                  </SelectItem>
+                  <SelectItem key={language.code} value={language.code}>{language.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -708,166 +693,121 @@ export default function TranslationInterface() {
             size="icon"
             onClick={swapLanguages}
             aria-label="Swap languages"
-            className="mx-auto h-12 w-12 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.04]"
+            className="glow-btn mx-auto h-11 w-11 rounded-full"
           >
             <ArrowLeftRight className="h-4 w-4" />
           </Button>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">To</label>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">To</label>
             <Select value={targetLang} onValueChange={setTargetLang}>
-              <SelectTrigger className="h-12 rounded-2xl border-black/5 bg-white/80 text-sm dark:border-white/10 dark:bg-white/[0.04]">
+              <SelectTrigger className="select-input h-11 rounded-2xl text-sm">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-black/5 dark:border-white/10">
+              <SelectContent className="rounded-2xl">
                 {languages
                   .filter((language) => language.code !== AUTO_LANGUAGE.code)
                   .map((language) => (
-                    <SelectItem key={language.code} value={language.code}>
-                      {language.name}
-                    </SelectItem>
+                    <SelectItem key={language.code} value={language.code}>{language.name}</SelectItem>
                   ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 xl:grid-cols-2">
-          <section className="secondary-panel flex min-h-[360px] flex-col rounded-[28px] p-4 md:p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Source</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <section className="inner-panel flex min-h-[320px] flex-col rounded-[22px] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Source</p>
+                <h2 className="mt-1.5 text-base font-semibold text-slate-900 dark:text-white truncate">
                   {sourceLang === 'auto'
-                    ? detectedLanguageName
-                      ? `Detected as ${detectedLanguageName}`
-                      : 'Type freely or choose a language for voice input'
-                    : `Listening for ${sourceLanguageName ?? sourceLang.toUpperCase()}`}
+                    ? detectedLanguageName ? `Detected: ${detectedLanguageName}` : 'Type or pick a language for voice'
+                    : sourceLanguageName ?? sourceLang.toUpperCase()}
                 </h2>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={toggleRecording}
-                  disabled={!canRecord && !isListening}
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="icon" onClick={toggleRecording} disabled={!canRecord && !isListening}
                   aria-label={isListening ? 'Stop recording' : 'Start recording'}
-                  className={`h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06] ${isListening ? 'border-sky-500/40 text-sky-600 dark:text-sky-300' : ''}`}
-                >
+                  className={`soft-btn h-10 w-10 rounded-full ${isListening ? '!border-sky-400/30 !text-sky-600 dark:!text-sky-300' : ''}`}>
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
+                <Button variant="outline" size="icon"
                   onClick={() => (isSpeaking ? stopSpeaking() : speakText(sourceText, sourceLang === 'auto' ? detectedLanguage ?? 'en' : sourceLang))}
-                  disabled={!sourceText.trim()}
-                  aria-label={isSpeaking ? 'Stop speaking source' : 'Speak source text'}
-                  className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
-                >
+                  disabled={!sourceText.trim()} aria-label={isSpeaking ? 'Stop speaking source' : 'Speak source text'}
+                  className="soft-btn h-10 w-10 rounded-full">
                   {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={clearSource}
-                  disabled={!sourceText.trim()}
-                  aria-label="Clear source text"
-                  className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
-                >
+                <Button variant="outline" size="icon" onClick={clearSource} disabled={!sourceText.trim()}
+                  aria-label="Clear source text" className="soft-btn h-10 w-10 rounded-full">
                   <Eraser className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="relative mt-5 flex-1">
-              <Textarea
-                value={sourceText}
-                onChange={(event) => handleSourceChange(event.target.value)}
+            <div className="relative mt-4 flex-1">
+              <Textarea value={sourceText} onChange={(event) => handleSourceChange(event.target.value)}
                 placeholder="Type here, or choose the spoken language and start dictation."
-                maxLength={5000}
-                aria-label="Source text to translate"
-                className="h-full min-h-[240px] rounded-[24px] border-black/5 bg-white/85 px-5 py-5 text-lg leading-8 tracking-[-0.02em] text-slate-950 shadow-none focus-visible:ring-1 dark:border-white/10 dark:bg-[#111214] dark:text-white"
-              />
+                maxLength={5000} aria-label="Source text to translate"
+                className="text-input h-full min-h-[200px] rounded-[18px] px-4 py-4 text-base leading-7 tracking-[-0.01em] shadow-none" />
               {(isTyping || isAutoDetecting || isTranslating) && (
-                <div className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-medium text-white dark:bg-white dark:text-slate-950">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {isAutoDetecting ? 'Detecting language' : isTranslating ? 'Translating' : 'Updating'}
+                <div className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full glow-badge px-3 py-1 text-[11px] font-medium">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {isAutoDetecting ? 'Detecting' : isTranslating ? 'Translating' : 'Updating'}
                 </div>
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-3">
                 <span>{wordCount} words</span>
-                <span>{sourceText.length} / 5000 characters</span>
+                <span>{sourceText.length}/5000</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void translateText(sourceText)}
+              <Button size="sm" onClick={() => void translateText(sourceText)}
                 disabled={!sourceText.trim() || isTranslating}
-                className="h-10 rounded-full border-black/5 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.06]"
-              >
-                Translate now
+                className="glow-btn h-8 rounded-full px-4 text-xs font-medium">
+                Translate
               </Button>
             </div>
           </section>
 
-          <section className="secondary-panel flex min-h-[360px] flex-col rounded-[28px] p-4 md:p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Translation</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">
-                  {targetLanguageName}
-                </h2>
+          <section className="inner-panel flex min-h-[320px] flex-col rounded-[22px] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Translation</p>
+                <h2 className="mt-1.5 text-base font-semibold text-slate-900 dark:text-white truncate">{targetLanguageName}</h2>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={autoSpeak ? 'default' : 'outline'}
-                  size="sm"
+              <div className="flex items-center gap-1.5">
+                <Button variant={autoSpeak ? 'default' : 'outline'} size="sm"
                   onClick={() => setAutoSpeak((current) => !current)}
-                  className={`h-11 rounded-full px-4 ${autoSpeak ? 'bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100' : 'border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]'}`}
-                >
+                  className={`h-10 rounded-full px-3.5 text-xs font-medium ${autoSpeak ? 'glow-btn' : 'soft-btn'}`}>
                   Auto speak
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
+                <Button variant="outline" size="icon"
                   onClick={() => (isSpeaking ? stopSpeaking() : speakText(translatedText, targetLang))}
-                  disabled={!translatedText.trim()}
-                  aria-label={isSpeaking ? 'Stop speaking translation' : 'Speak translation'}
-                  className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
-                >
+                  disabled={!translatedText.trim()} aria-label={isSpeaking ? 'Stop speaking translation' : 'Speak translation'}
+                  className="soft-btn h-10 w-10 rounded-full">
                   {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(translatedText)}
-                  disabled={!translatedText.trim()}
-                  aria-label="Copy translation"
-                  className="h-11 w-11 rounded-full border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]"
-                >
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(translatedText)}
+                  disabled={!translatedText.trim()} aria-label="Copy translation"
+                  className="soft-btn h-10 w-10 rounded-full">
                   {copyStatus === 'copied' ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
-            <div className="mt-5 flex-1">
-              <Textarea
-                value={translatedText}
-                readOnly
-                placeholder="Your translation appears here."
+            <div className="mt-4 flex-1">
+              <Textarea value={translatedText} readOnly placeholder="Your translation appears here."
                 aria-label="Translated text"
-                className="h-full min-h-[240px] rounded-[24px] border-black/5 bg-white/85 px-5 py-5 text-lg leading-8 tracking-[-0.02em] text-slate-950 shadow-none focus-visible:ring-1 dark:border-white/10 dark:bg-[#111214] dark:text-white"
-              />
+                className="text-input h-full min-h-[200px] rounded-[18px] px-4 py-4 text-base leading-7 tracking-[-0.01em] shadow-none" />
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span>{translationSource ?? 'Live translation'}</span>
-              <span>{autoSpeak ? 'Spoken replies are on' : 'Spoken replies are off'}</span>
+              <span>{autoSpeak ? 'Auto-speak on' : 'Auto-speak off'}</span>
             </div>
           </section>
         </div>
@@ -876,43 +816,36 @@ export default function TranslationInterface() {
       <div className="grid gap-4 xl:grid-cols-2">
         <AnimatePresence initial={false}>
           {showHistory && (
-            <motion.section
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              className="surface-panel rounded-[28px] p-5"
-            >
+            <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+              className="glow-panel rounded-[22px] p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">History</p>
-                  <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">Recent translations</h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">History</p>
+                  <h3 className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">Recent</h3>
                 </div>
                 {history.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={clearHistory} className="h-10 rounded-full border-black/5 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.06]">
-                    {showClearConfirm ? 'Confirm clear?' : 'Clear'}
+                  <Button variant="outline" size="sm" onClick={clearHistory}
+                    className="soft-btn h-9 rounded-full px-4 text-xs font-medium">
+                    {showClearConfirm ? 'Confirm?' : 'Clear'}
                   </Button>
                 )}
               </div>
 
-              <div className="mt-5 space-y-2">
+              <div className="mt-4 space-y-2">
                 {history.length === 0 ? (
-                  <p className="rounded-[20px] bg-black/[0.03] px-4 py-4 text-sm text-slate-500 dark:bg-white/[0.04] dark:text-slate-400">
-                    Saved translations will appear here once you start using the app.
+                  <p className="rounded-[16px] bg-black/[0.02] px-4 py-4 text-sm text-slate-500 dark:bg-white/[0.02] dark:text-slate-400">
+                    Translations you make will appear here.
                   </p>
                 ) : (
                   history.slice(0, 8).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => loadFromHistory(item)}
-                      className="w-full rounded-[22px] border border-black/5 bg-white/80 px-4 py-4 text-left transition-colors hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 space-y-1">
+                    <button key={item.id} type="button" onClick={() => loadFromHistory(item)}
+                      className="soft-btn w-full rounded-[16px] px-4 py-3.5 text-left transition-all hover:shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-0.5">
                           <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{item.sourceText}</p>
-                          <p className="truncate text-sm text-slate-500 dark:text-slate-400">{item.translatedText}</p>
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{item.translatedText}</p>
                         </div>
-                        <span className="shrink-0 text-xs text-slate-400">{formatHistoryTime(item.timestamp)}</span>
+                        <span className="shrink-0 text-[10px] text-slate-400">{formatHistoryTime(item.timestamp)}</span>
                       </div>
                     </button>
                   ))
@@ -924,49 +857,32 @@ export default function TranslationInterface() {
 
         <AnimatePresence initial={false}>
           {showPhrases && (
-            <motion.section
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              className="surface-panel rounded-[28px] p-5"
-            >
+            <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+              className="glow-panel rounded-[22px] p-5">
               <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Quick Phrases</p>
-                <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">
-                  Ready-made phrases for travel and everyday use
-                </h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Quick Phrases</p>
+                <h3 className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">Travel & everyday</h3>
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Button
-                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                  size="sm"
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                <Button variant={selectedCategory === 'all' ? 'default' : 'outline'} size="sm"
                   onClick={() => setSelectedCategory('all')}
-                  className={`h-10 rounded-full px-4 ${selectedCategory === 'all' ? 'bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100' : 'border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]'}`}
-                >
+                  className={`h-8 rounded-full px-3 text-xs font-medium ${selectedCategory === 'all' ? 'glow-btn' : 'soft-btn'}`}>
                   All
                 </Button>
                 {categories.map((category) => (
-                  <Button
-                    key={category}
-                    variant={selectedCategory === category ? 'default' : 'outline'}
-                    size="sm"
+                  <Button key={category} variant={selectedCategory === category ? 'default' : 'outline'} size="sm"
                     onClick={() => setSelectedCategory(category)}
-                    className={`h-10 rounded-full px-4 ${selectedCategory === category ? 'bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100' : 'border-black/5 bg-white/80 dark:border-white/10 dark:bg-white/[0.06]'}`}
-                  >
+                    className={`h-8 rounded-full px-3 text-xs font-medium ${selectedCategory === category ? 'glow-btn' : 'soft-btn'}`}>
                     {category}
                   </Button>
                 ))}
               </div>
 
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <div className="mt-4 grid gap-1.5 sm:grid-cols-2">
                 {currentPhrases.map((phrase, index) => (
-                  <button
-                    key={`${phrase.text}-${index}`}
-                    type="button"
-                    onClick={() => loadPhrase(phrase.text)}
-                    className="rounded-[22px] border border-black/5 bg-white/80 px-4 py-4 text-left text-sm text-slate-900 transition-colors hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.07]"
-                  >
+                  <button key={`${phrase.text}-${index}`} type="button" onClick={() => loadPhrase(phrase.text)}
+                    className="soft-btn rounded-[14px] px-3.5 py-3 text-left text-sm text-slate-900 transition-all hover:shadow-sm dark:text-white">
                     {phrase.text}
                   </button>
                 ))}
