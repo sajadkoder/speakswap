@@ -33,7 +33,7 @@ A web-based voice and text translation app built with Next.js. Translate convers
 ### Install & Run
 
 ```bash
-git clone https://github.com/sajadkoder/speakswap.git
+git clone https://github.com/neuralbroker/speakswap.git
 cd speakswap
 npm install
 npm run dev
