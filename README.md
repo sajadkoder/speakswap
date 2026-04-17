@@ -1,61 +1,92 @@
 # SpeakSwap
 
-A web-based voice and text translation app built with Next.js. Translate conversations instantly, hear spoken output, and switch between languages with a clean glow-type UI and soothing animated background.
-
-## Features
-
-- **Voice & text translation** between 50+ languages
-- **Auto-detect** the source language from typed text
-- **Voice input** via the Web Speech API with locale-aware mic flow
-- **Spoken playback** with intelligent voice selection per language
-- **Translation history** persisted in localStorage
-- **Common phrases** library for 12 languages with category browsing
-- **Dark mode** with system preference detection
-- **Offline indicator** that appears when network is lost
-- **Keyboard shortcuts** — Escape clears input, Ctrl+Enter translates
-- **Responsive layout** for desktop and mobile
-- **Glow-type UI** with glassmorphism panels and animated gradient orbs
+SpeakSwap is a web-based translation app that lets you translate text and speech between languages directly in the browser. You can type or speak into the app, get a translation, and hear the result spoken back. No API keys are needed ? it uses free translation endpoints. The app runs fully in the browser with a server-side proxy to handle translation requests.
 
 ## Tech Stack
 
-- Next.js 15 · React 19 · TypeScript
-- Tailwind CSS · Radix UI · Framer Motion
+- Next.js 15
+- React 19
+- TypeScript
+- Tailwind CSS
+- Radix UI
+- Framer Motion
 - Web Speech API (SpeechRecognition + SpeechSynthesis)
-- Translation: MyMemory, LibreTranslate, Lingva (no API keys needed)
+- Translation: MyMemory, LibreTranslate, Lingva
 
-## Getting Started
+## Features
 
-### Prerequisites
+- Translate text between multiple languages
+- Voice input with Web Speech API (Chrome, Edge, Safari)
+- Spoken playback of translations
+- Auto-detect source language from typed text
+- Translation history saved in localStorage
+- Common phrases library for 12 languages
+- Dark mode with system preference detection
+- Keyboard shortcuts: Escape clears input, Ctrl+Enter translates
+- Offline indicator when network is lost
+- Responsive layout for desktop and mobile
 
-- Node.js 18+
+## Prerequisites
+
+- Node.js 18 or newer
 - npm
 
-### Install & Run
+## Installation
 
 ```bash
 git clone https://github.com/neuralbroker/speakswap.git
 cd speakswap
 npm install
+```
+
+## Usage
+
+### Development
+
+```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Production Build
+### Production
 
 ```bash
 npm run build
 npm run start
 ```
 
-## Scripts
+### Scripts
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
+| `npm run dev` | Start development server |
+| `npm run build` | Create production build |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+
+### Voice Input
+
+1. Select the language you plan to speak in the source language dropdown.
+2. Click the microphone button to start recording.
+3. Speak clearly into your microphone.
+4. Your speech is converted to text and placed in the source field.
+5. Press Ctrl+Enter or click the translate button to get the translation.
+6. Click the speaker button next to the translation to hear it spoken.
+
+Note: Auto-detect works for typed text only. For voice input, you must select the language before recording. The Web Speech API cannot reliably auto-detect spoken language.
+
+### API Endpoints
+
+The app exposes the following server-side API routes:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/translate` | POST | Translate text. Body: `{ text, sourceLang, targetLang }` |
+| `/api/languages` | GET | Get list of supported languages |
+| `/api/detect-language` | POST | Detect language of input text. Body: `{ text }` |
+
+All endpoints are rate-limited. The `/api/translate` endpoint falls back through multiple translation services if one fails.
 
 ## Project Structure
 
@@ -63,58 +94,39 @@ npm run start
 speakswap/
   app/
     api/
-      translate/route.ts      # Rate-limited translation proxy
-      languages/route.ts      # Supported languages list
-      detect-language/route.ts # Language detection endpoint
-    globals.css               # Glow theme CSS utilities
-    layout.tsx                # Root layout with providers
-    page.tsx                  # Main page with soothing background
+      translate/          # Translation proxy with rate limiting and caching
+      languages/          # Supported languages list endpoint
+      detect-language/    # Language detection endpoint
+    globals.css           # Global styles and theme
+    layout.tsx            # Root layout with providers
+    page.tsx              # Main page
   components/
-    TranslationInterface.tsx  # Core translation UI
+    TranslationInterface.tsx  # Main translation UI component
     ThemeProvider.tsx         # Dark mode context
-    OfflineIndicator.tsx      # Network status banner
+    OfflineIndicator.tsx      # Network status display
     ErrorBoundary.tsx         # React error boundary
-    ui/                       # Radix UI primitives
+    ui/                   # Radix UI primitive components
   lib/
-    hooks.ts                 # useLocalStorage, useDebounce, useKeyboardShortcut
-    phrases.ts               # Common phrases data (12 languages)
-    speech.ts                # Speech locale mapping & voice selection
-    language-detection.ts    # Google + heuristic detection
-    utils.ts                 # cn() utility
+    hooks.ts              # useLocalStorage, useDebounce, useKeyboardShortcut
+    phrases.ts            # Common phrases data for 12 languages
+    speech.ts             # Speech locale mapping and voice selection
+    language-detection.ts # Language detection logic
+    utils.ts              # Utility functions
   types/
-    index.ts                 # Shared Language, TranslationResponse, HistoryItem
+    index.ts              # Shared TypeScript interfaces
   public/
-    manifest.json            # PWA manifest
+    manifest.json         # PWA manifest
 ```
 
-## Voice Notes
+## Environment Variables
 
-- Speech recognition requires a supported browser (Chrome, Edge, Safari) and microphone permission.
-- Select the spoken language before recording — browsers cannot reliably auto-detect the spoken language.
-- Playback uses the best matching system voice for the target language.
+SpeakSwap does not require any environment variables to run. All translation services are accessed through free public endpoints.
 
-## Troubleshooting
+If you want to use paid translation services in the future, add API keys to a `.env.local` file. The app reads `NEXT_PUBLIC_` prefixed variables.
 
-**Microphone won't start** — Allow mic permissions, use a current browser, select the language you'll speak.
+## Contributing
 
-**No spoken playback** — Check device volume. Some languages fall back to a generic system voice. Voices may take a moment to load on first open.
-
-**Translation returns nothing** — Check your network. Retry after a few seconds if an upstream service is temporarily unavailable.
-
-## Version History
-
-| Version | Highlights |
-|---|---|
-| v2.1 | Dark mode, glassmorphism, history, phrases, debounce |
-| v3.0 | Bug fixes — rate limiting, input validation, aria-labels, mic/auto-detect fix, shared types, manifest.json |
-| v3.1 | Glow-type UI redesign with soothing animated background |
-
-## Contributors
-
-- Abdulla Sajad
-- Adwaith PC
-- Jishnu MR
-- Harikrishnan K
+Contributions are welcome. Open an issue to discuss changes before submitting a pull request.
 
 ## License
 
